@@ -304,6 +304,10 @@ images = [img, gray, th3, th4]#, th4, gray]
 
 
 # Camera calibration 
+
+
+# Set up calibration chessboard
+
 # termination criteria
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
@@ -342,7 +346,42 @@ if ret == True:
     # Draw and display the corners
     cv2.drawChessboardCorners(img, ((num_rows+1),(num_cols+1)), corners2, ret)
     cv2.imshow('img', img)
-    cv2.waitKey()
+    cv2.waitKey(500)
+
+cv2.destroyAllWindows()
+
+
+
+#Perform calibration
+ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+
+
+
+# Undistoration correction
+img = cv2.imread('2024-09-04-145841.jpg')
+cv2.imshow('img', img)
+cv2.waitKey()
+h,  w = img.shape[:2]
+newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+
+
+# undistort
+dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
+
+# Re-projection error
+mean_error = 0
+for i in range(len(objpoints)):
+    imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
+    error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
+    mean_error += error
+ 
+print( "total error: {}".format(mean_error/len(objpoints)) )
+ 
+# crop the image
+x, y, w, h = roi
+dst = dst[y:y+h, x:x+w]
+cv2.imshow('calibresult.png', dst)
+cv2.waitKey()
 
 cv2.destroyAllWindows()
 
