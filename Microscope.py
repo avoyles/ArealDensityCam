@@ -609,10 +609,10 @@ def distanceCalculate(p1, p2):
     # print(dis)
     return dis
 
-def measureGridSize():
+def measureGridSize(img):
 	# get the areas of square black areas
 	# Mat squaresContours = src.clone();
-	img = cv2.imread('./Camera.png')
+	# img = cv2.imread('./Camera.png')
 	# img = cv2.imread('./test_image.jpeg')
 	squaresContours = img.copy()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
@@ -755,9 +755,44 @@ def measureGridSize():
 
 	print(pixels_per_mm)
 
-	cv2.imshow('original', img)
-	cv2.waitKey(0)
+	# cv2.imshow('original', img)
+	# cv2.waitKey(0)
+	# cv2.destroyAllWindows()
+
+
+# measureGridSize()
+
+
+def acquireFromCamera():
+	# Open the default camera (default was 0)
+	cam = cv2.VideoCapture(3)
+
+	# Get the default frame width and height
+	frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
+	frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+	# Define the codec and create VideoWriter object
+	fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+	out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (frame_width, frame_height))
+
+	while True:
+	    ret, frame = cam.read()
+
+	    # Write the frame to the output file
+	    out.write(frame)
+
+	    measureGridSize(frame)
+
+	    # Display the captured frame
+	    cv2.imshow('Camera (Press q to exit)', frame)
+
+	    # Press 'q' to exit the loop
+	    if cv2.waitKey(1) == ord('q'):
+	        break
+
+	# Release the capture and writer objects
+	cam.release()
+	out.release()
 	cv2.destroyAllWindows()
 
-
-measureGridSize()
+acquireFromCamera()
