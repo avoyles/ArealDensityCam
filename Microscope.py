@@ -644,6 +644,9 @@ def measureGridSize(img):
 	#     dilate(outerBox, outerBox, kernel);
 	outerBox = cv2.dilate(outerBox,kernel,iterations = 1)
 
+	# kernel = np.ones((30,30))
+	outerBox = cv2.morphologyEx(outerBox, cv2.MORPH_OPEN, np.ones((2,2)))
+
 
 
 
@@ -660,7 +663,8 @@ def measureGridSize(img):
 	# # vector hierarchy;
 
 	# contours, hierarchy  = cv2.findContours(outerBox, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-	contours, hierarchy  = cv2.findContours(outerBox, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+	# contours, hierarchy  = cv2.findContours(outerBox, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+	contours, hierarchy  = cv2.findContours(outerBox, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 	# findContours(outerBox, contours, hierarchy, RETR_LIST, CHAIN_APPROX_SIMPLE);
 	area_list = []
 	contour_list = []
@@ -676,13 +680,19 @@ def measureGridSize(img):
 		# print(M)
 
 		# Point center (m.m10 / m.m00, m.m01 / m.m00);
-		cX = int(M["m10"] / M["m00"])
-		cY = int(M["m01"] / M["m00"])
+		try:
+			cX = int(M["m10"] / M["m00"])
+			cY = int(M["m01"] / M["m00"])
+		except ZeroDivisionError:
+			print(M["m10"], M["m00"])
+			print(M["m01"], M["m00"])
+			cX = 0
+			cY = 0
 		# print(outerBox[cY,cX])
 		# print(outerBox)
 
 		# if (outerBox.at(center) == 0) {//the center is black so certainly the area
-		if outerBox[cY,cX] == 0:
+		if (outerBox[cY,cX] == 0) and (cY > 0) and (cX > 0):
 			# print("h")
 			# cv2.drawContours(img, [contour], -1, (0,255,0), 2)
 			# vector approxCurve;
@@ -697,23 +707,29 @@ def measureGridSize(img):
 				b = distanceCalculate(approxCurve[0][0], approxCurve[2][0])
 				c = distanceCalculate(approxCurve[1][0], approxCurve[0][0])
 				d = distanceCalculate(approxCurve[1][0], approxCurve[2][0])
-				delta = 0.5;
+				(x,y,w,h) = cv2.boundingRect(contour)
+				delta = 0.2;
 				# double area = contourArea(contours[i]);
 				area = area = cv2.contourArea(contour)
 				# print(area)
-				cv2.drawContours(img, [contour], -1, (255,0,0), 5)
+				# print(area,w,h)
+				# cv2.drawContours(img, [contour], -1, (255,0,0), 3)  # plot all found contours in blue
 
 				# print(((np.max([a,b]) / np.min([a,b]) -1 ) <delta ))
-				# print(a,b)
+				# print(a,b,c,d)
 
 				# if (max(a, b) / min(a, b)-1 < delta && max(a, c) / min(a, c)-1 < delta
 					# && max(a, d) / min(a, d)-1 < delta && max(b, c) / min(b, c)-1 < delta
 					# && max(b, d) / min(b, d)-1 < delta && max(c, d) / min(c, d)-1 < delta
 					# && area>30) {
-				if ((np.max([a,b]) / np.min([a,b]) -1 ) <delta ) and ((np.max([a,c]) / np.min([a,c]) -1 ) <delta ) and ((np.max([a,d]) / np.min([a,d]) -1 ) <delta ) and ((np.max([b,c]) / np.min([b,c]) -1 ) <delta ) and ((np.max([b,d]) / np.min([b,d]) -1 ) <delta ) and ((np.max([c,d]) / np.min([c,d]) -1 ) <delta ) and (area > grid_area_threshold):
+				if (abs((w/h)-1) < delta) and (area > grid_area_threshold) and (abs((w*h/area)-1) < delta) :
+				# if (abs((w/h)-1) < delta) and (area > grid_area_threshold)  :
+				# if ((np.max([a,b]) / np.min([a,b]) -1 ) <delta ) and ((np.max([a,c]) / np.min([a,c]) -1 ) <delta ) and ((np.max([a,d]) / np.min([a,d]) -1 ) <delta ) and ((np.max([b,c]) / np.min([b,c]) -1 ) <delta ) and ((np.max([b,d]) / np.min([b,d]) -1 ) <delta ) and ((np.max([c,d]) / np.min([c,d]) -1 ) <delta ) and (area > grid_area_threshold):
 						# //the area is square
 						# print('test')
 						# areas.push_back(area);
+						cv2.rectangle(img,(x,y),(x+w,y+h),(255,255,0),2)
+
 						area_list.append(area)
 						# resContours.push_back(contours[i]);
 						contour_list.append(contour)
@@ -743,7 +759,8 @@ def measureGridSize(img):
 	# print(area_list)
 
 	for (area,contour) in zip(area_list,contour_list):
-		cv2.drawContours(img, [contour], -1, (0,255,0), 1)
+		cv2.drawContours(img, [contour], -1, (0,255,0), 3)  # plot square-like contours in green
+		# continue
 
 	# //take the median
 	# int median = areas[areas.size() / 2];
@@ -757,10 +774,12 @@ def measureGridSize(img):
 
 	# cv2.imshow('original', img)
 	# cv2.waitKey(0)
+	# cv2.imshow('original', outerBox)
+	# cv2.waitKey(0)
 	# cv2.destroyAllWindows()
 
 
-# measureGridSize()
+# measureGridSize(cv2.imread('./Camera.png'))
 
 
 def acquireFromCamera():
@@ -785,6 +804,7 @@ def acquireFromCamera():
 
 	    # Display the captured frame
 	    cv2.imshow('Camera (Press q to exit)', frame)
+	    cv2.imwrite('out.jpeg',frame)
 
 	    # Press 'q' to exit the loop
 	    if cv2.waitKey(1) == ord('q'):
@@ -796,3 +816,28 @@ def acquireFromCamera():
 	cv2.destroyAllWindows()
 
 acquireFromCamera()
+
+# a = [[[392,  61]],
+#  [[483,  64]],
+#  [[479, 153]],
+#  [[391, 152]]]
+
+# print(a[0][0])
+
+# a = [[[223, 277]],
+#  [[314, 352]],
+#  [[237, 445]],
+#  [[148, 369]]]
+
+# a = [[[498, 222]],
+#  [[594, 295]],
+#  [[519, 396]],
+#  [[427, 322]]]
+
+# plt.plot(a[0][0][0],a[0][0][1],'o')
+# plt.plot(a[1][0][0],a[1][0][1],'o')
+# plt.plot(a[2][0][0],a[2][0][1],'o')
+# plt.plot(a[3][0][0],a[3][0][1],'o')
+# plt.gca().set_aspect('equal')
+
+# plt.show()
