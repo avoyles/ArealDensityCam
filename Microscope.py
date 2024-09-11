@@ -609,7 +609,7 @@ def distanceCalculate(p1, p2):
     # print(dis)
     return dis
 
-def measureGridSize(img):
+def measureGridSize(img, show_plot=True):
 	# get the areas of square black areas
 	# Mat squaresContours = src.clone();
 	# img = cv2.imread('./Camera.png')
@@ -617,7 +617,7 @@ def measureGridSize(img):
 	squaresContours = img.copy()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
 	grid_area_threshold = 100
-	known_grid_area = 5.08 # mm^2
+	known_grid_area = 5.00 # mm^2
 
 	# print(gray.shape)
 
@@ -684,8 +684,8 @@ def measureGridSize(img):
 			cX = int(M["m10"] / M["m00"])
 			cY = int(M["m01"] / M["m00"])
 		except ZeroDivisionError:
-			print(M["m10"], M["m00"])
-			print(M["m01"], M["m00"])
+			# print(M["m10"], M["m00"])
+			# print(M["m01"], M["m00"])
 			cX = 0
 			cY = 0
 		# print(outerBox[cY,cX])
@@ -713,7 +713,9 @@ def measureGridSize(img):
 				area = area = cv2.contourArea(contour)
 				# print(area)
 				# print(area,w,h)
-				# cv2.drawContours(img, [contour], -1, (255,0,0), 3)  # plot all found contours in blue
+				cv2.drawContours(img, [contour], -1, (255,0,0), 3)  # plot all found contours in blue
+				cv2.drawContours(outerBox, [contour], -1, (255,0,0), 3)  # plot all found contours in blue
+
 
 				# print(((np.max([a,b]) / np.min([a,b]) -1 ) <delta ))
 				# print(a,b,c,d)
@@ -728,11 +730,12 @@ def measureGridSize(img):
 						# //the area is square
 						# print('test')
 						# areas.push_back(area);
-						cv2.rectangle(img,(x,y),(x+w,y+h),(255,255,0),2)
+						# cv2.rectangle(img,(x,y),(x+w,y+h),(255,255,0),2)
+						if area > 0:
 
-						area_list.append(area)
-						# resContours.push_back(contours[i]);
-						contour_list.append(contour)
+							area_list.append(area)
+							# resContours.push_back(contours[i]);
+							contour_list.append(contour)
 						# }
 			#         }
 		#     }
@@ -766,11 +769,15 @@ def measureGridSize(img):
 	# int median = areas[areas.size() / 2];
 	# cout << "black area median = " << median << endl;
 	median = np.median(area_list)
+	pixels_per_mm = 0
 	# //take the side of a square which is the number of pixels per millimeter
 	# cout << "number of pixels per millimeter = " << sqrt(median) << endl;`Preformatted text`
-	pixels_per_mm = np.sqrt(median) / known_grid_area
+	if np.size(median) == 1:
+		pixels_per_mm = np.sqrt(median) / known_grid_area
 
-	print(pixels_per_mm)
+		# print(pixels_per_mm)
+		# # print(area_list)
+		# # print('-----------------------')
 
 	# cv2.imshow('original', img)
 	# cv2.waitKey(0)
@@ -778,11 +785,140 @@ def measureGridSize(img):
 	# cv2.waitKey(0)
 	# cv2.destroyAllWindows()
 
+	return pixels_per_mm
+
 
 # measureGridSize(cv2.imread('./Camera.png'))
 
 
-def acquireFromCamera():
+
+
+
+
+
+def measureArea(img, pixels_per_mm):
+	# img = cv2.imread('./Camera4.png')
+	# cv2.imshow('original', img)
+	# cv2.waitKey(0)
+	# cv2.destroyAllWindows()
+
+	area_threshold = 100
+
+
+	# Convert to grayscale 
+	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
+
+	# cv2.imshow('image', gray) 
+	# cv2.waitKey(0) 
+	# cv2.destroyAllWindows()
+
+
+	#
+	# Hough Line detection
+	#
+
+	# # Find the edges in the image using canny detector
+	# edges = cv2.Canny(gray, 50, 200)
+	# # Detect points that form a line
+	# lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=10, maxLineGap=250)
+	# # Draw lines on the image
+	# for line in lines:
+	#     x1, y1, x2, y2 = line[0]
+	#     cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 3)
+
+	# # Show result
+	# # img = cv2.resize(img, dsize=(600, 600))
+	# cv2.imshow("Result Image", img)
+	# cv2.waitKey(0) 
+	# cv2.destroyAllWindows()
+
+
+
+	#
+	# Threshold detection
+	#
+
+	blur = cv2.GaussianBlur(gray, (5, 5), 0)
+	# cv2.imshow("blur", blur)
+	  
+	# #to separate the object from the background 
+	# ret, thresh = cv2.threshold(blur, 127, 255, 0) 
+
+	ret,th1 = cv2.threshold(gray,70,255,cv2.THRESH_BINARY)
+	th2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,11,2)
+	th3 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_MEAN_C,  cv2.THRESH_BINARY,7,2)
+	th4 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,7,2)
+	th5 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,15,2)
+	# Otsu's thresholding
+	ret6,th6 = cv2.threshold(gray,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
+	# Otsu's thresholding with blur
+	ret7,th7= cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+	 
+	titles = ['Original Image', 'Grayscale', 'Binary ',
+	            'Adaptive Gaussian (11) ', 'Adaptive Mean', 'Adaptive Gaussian (7) ', 'Adaptive Gaussian (15) ', 'Otsu ', 'Otsu w/ Blur']
+	images = [img, gray, th1, th2, th3, th4, th5, th6, th7]
+
+
+	for i in range(9):
+	    plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
+	    plt.title(titles[i])
+	    plt.xticks([]),plt.yticks([])
+	# plt.show(block=False)
+	# plt.pause(0.05)
+	# plt.close()
+
+
+
+	contours,hierarchy = cv2.findContours(th1, 1, 2)
+	# print(len(contours))
+	for contour in contours:
+		area = cv2.contourArea(contour)
+		if area > area_threshold:
+
+			x, y, w, h = cv2.boundingRect(contour) 
+			cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2) 
+			cv2.putText(img, '{0:.2f} mm2'.format(area/(pixels_per_mm*pixels_per_mm)), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2) 
+
+			cv2.drawContours(img, [contour], -1, (0,255,0), 3)  # plot square-like contours in green
+			# print(area)
+
+	# print('---------------')
+	return images, titles
+
+
+
+	#
+	# Fast Line detection
+	#
+
+	# # Init. the fast-line-detector (fld)
+	# fld = cv2.ximgproc.createFastLineDetector().detect(gray)
+
+	# # Detect the lines
+	# for line in fld:
+
+	#     # Get current coordinates
+	#     x1 = int(line[0][0])
+	#     y1 = int(line[0][1])
+	#     x2 = int(line[0][2])
+	#     y2 = int(line[0][3])
+
+	#     # Draw the line
+	#     cv2.line(img, (x1, y1), (x2, y2), (255, 0, 255), 5)
+
+	# # Display
+	# cv2.imshow("img", img)
+	# cv2.waitKey(0)
+
+
+
+
+
+
+
+
+def acquireFromCamera(show_plot=False):
 	# Open the default camera (default was 0)
 	cam = cv2.VideoCapture(3)
 
@@ -794,28 +930,54 @@ def acquireFromCamera():
 	fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 	out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (frame_width, frame_height))
 
+	pixel_scale_list = []
+	# i=0
+
 	while True:
-	    ret, frame = cam.read()
+		ret, frame = cam.read()
+		frame_copy = frame.copy()
 
-	    # Write the frame to the output file
-	    out.write(frame)
+		# Write the frame to the output file
+		# out.write(frame)
 
-	    measureGridSize(frame)
+		pixels_per_mm = measureGridSize(frame)
+		if not np.isnan(pixels_per_mm):
+			pixel_scale_list.append(pixels_per_mm)
 
-	    # Display the captured frame
-	    cv2.imshow('Camera (Press q to exit)', frame)
-	    cv2.imwrite('out.jpeg',frame)
+		avg_pixel_scale = np.convolve(pixel_scale_list, np.ones(len(pixel_scale_list))/len(pixel_scale_list), mode='valid')
 
-	    # Press 'q' to exit the loop
-	    if cv2.waitKey(1) == ord('q'):
-	        break
+		print(pixels_per_mm)
+		images, titles = measureArea(frame_copy, pixels_per_mm)
+		cv2.imshow('Area Detection', frame_copy)
+		# for i in range(9):
+		# 	plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
+		# 	plt.title(titles[i])
+		# 	plt.xticks([]),plt.yticks([])
+
+		# plt.show(block=False)
+		# plt.pause(0.05)
+		# # plt.close()
+
+		# Display the captured frame
+		if show_plot:
+			cv2.imshow('Camera (Press q to exit)', frame)
+		# cv2.imwrite('out.jpeg',frame)
+
+		# Press 'q' to exit the loop
+		if cv2.waitKey(1) == ord('q'):
+			break
+
+		# i = i+1
 
 	# Release the capture and writer objects
 	cam.release()
 	out.release()
 	cv2.destroyAllWindows()
 
-acquireFromCamera()
+	print('-------------')
+	print(avg_pixel_scale)
+
+acquireFromCamera(show_plot=True)
 
 # a = [[[392,  61]],
 #  [[483,  64]],
@@ -841,3 +1003,15 @@ acquireFromCamera()
 # plt.gca().set_aspect('equal')
 
 # plt.show()
+
+
+
+
+
+
+
+
+
+
+# while True:
+# 	measureArea(cv2.imread)
