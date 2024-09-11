@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 # import numpy as np
 # import cv2 as cv
 import glob
+import pandas as pd
 
 # def plot_image(img, figsize_in_inches=(5,5)):
 #     fig, ax = plt.subplots(figsize=figsize_in_inches)
@@ -913,7 +914,10 @@ def measureArea(img, pixels_per_mm):
 
 
 
-
+def running_mean(x, N):
+	cumsum = np.cumsum(np.insert(x, 0, 0)) 
+	# print(cumsum)
+	return (cumsum[N:] - cumsum[:-N]) / N
 
 
 
@@ -946,8 +950,13 @@ def acquireFromCamera(show_plot=False):
 
 		avg_pixel_scale = np.convolve(pixel_scale_list, np.ones(len(pixel_scale_list))/len(pixel_scale_list), mode='valid')
 
-		print(pixels_per_mm)
-		images, titles = measureArea(frame_copy, pixels_per_mm)
+		if len(pixel_scale_list) <25:
+			avg_pixel_scale = running_mean(pixel_scale_list, len(pixel_scale_list))[0]
+		else:
+			avg_pixel_scale = running_mean(pixel_scale_list, 20)[-1]
+
+		print(avg_pixel_scale)
+		images, titles = measureArea(frame_copy, avg_pixel_scale)
 		cv2.imshow('Area Detection', frame_copy)
 		# for i in range(9):
 		# 	plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
