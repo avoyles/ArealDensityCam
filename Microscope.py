@@ -308,8 +308,8 @@ def calibration():
 	# termination criteria
 	criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-	num_rows = 3
-	num_cols = 4
+	num_rows = 5
+	num_cols = 6
 	 
 	# prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
 	objp = np.zeros(((num_cols+1)*(num_rows+1),3), np.float32)
@@ -322,7 +322,8 @@ def calibration():
 	# images = glob.glob('*.jpg')
 	 
 	# for fname in images:
-	img = cv2.imread('./calibration/2024-09-04-153634.jpg')
+	# img = cv2.imread('./calibration/2024-09-04-153634.jpg')
+	img = cv2.imread('./calibration/calibration_grid2.png')
 	# cv2.imshow('img', img)
 	# cv2.waitKey()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -343,7 +344,7 @@ def calibration():
 	    # Draw and display the corners
 	    cv2.drawChessboardCorners(img, ((num_rows+1),(num_cols+1)), corners2, ret)
 	    cv2.imshow('img', img)
-	    cv2.waitKey(500)
+	    cv2.waitKey(0)
 
 	cv2.destroyAllWindows()
 
@@ -355,7 +356,8 @@ def calibration():
 
 
 	# Undistoration correction
-	img = cv2.imread('2024-09-04-145841.jpg')
+	# img = cv2.imread('2024-09-04-145841.jpg')
+	img = cv2.imread('./calibration/calibration_test.png')
 	cv2.imshow('img', img)
 	cv2.waitKey()
 	h,  w = img.shape[:2]
@@ -383,7 +385,9 @@ def calibration():
 	cv2.destroyAllWindows()
 
 
-	np.savetxt('camera_distortion_coefficients.txt', (ret, mtx, dist, rvecs, tvecs))   # x,y,z equal sized 1D arrays
+	# np.savetxt('camera_distortion_coefficients.txt', (ret, mtx, dist, rvecs, tvecs))   # x,y,z equal sized 1D arrays
+
+	return ret, mtx, dist, rvecs, tvecs
 
 
 # calibration()
@@ -618,7 +622,7 @@ def measureGridSize(img, show_plot=True):
 	squaresContours = img.copy()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
 	grid_area_threshold = 100
-	known_grid_area = 5.00 # mm^2
+	known_grid_width = 5 # mm
 
 	# print(gray.shape)
 
@@ -647,6 +651,9 @@ def measureGridSize(img, show_plot=True):
 
 	# kernel = np.ones((30,30))
 	outerBox = cv2.morphologyEx(outerBox, cv2.MORPH_OPEN, np.ones((2,2)))
+
+	outerBox = cv2.erode(outerBox,np.ones((3,4),np.uint8),iterations = 1)
+
 
 
 
@@ -764,27 +771,57 @@ def measureGridSize(img, show_plot=True):
 
 	for (area,contour) in zip(area_list,contour_list):
 		cv2.drawContours(img, [contour], -1, (0,255,0), 3)  # plot square-like contours in green
+		# cv2.drawContours(outerBox, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
 		# continue
 
 	# //take the median
 	# int median = areas[areas.size() / 2];
 	# cout << "black area median = " << median << endl;
-	median = np.median(area_list)
+	# median = np.median(area_list)
+	area_list.sort()
+	if len(area_list) < 2:
+		median = np.mean(area_list)
+	elif len(area_list) < 3:
+		median = np.mean(area_list[1:-1])
+	else:
+		median = np.mean(area_list[2:-2])
 	pixels_per_mm = 0
 	# //take the side of a square which is the number of pixels per millimeter
 	# cout << "number of pixels per millimeter = " << sqrt(median) << endl;`Preformatted text`
 	if np.size(median) == 1:
-		pixels_per_mm = np.sqrt(median) / known_grid_area
+		pixels_per_mm = np.sqrt(median) / known_grid_width
 
 		# print(pixels_per_mm)
 		# # print(area_list)
 		# # print('-----------------------')
 
 	# cv2.imshow('original', img)
+	# # cv2.waitKey(0)
+	# cv2.imshow('grayscale', outerBox)
 	# cv2.waitKey(0)
-	# cv2.imshow('original', outerBox)
-	# cv2.waitKey(0)
-	# cv2.destroyAllWindows()
+	# # cv2.destroyAllWindows()
+
+	if len(area_list) < 2:
+		print(np.mean(area_list/(pixels_per_mm*pixels_per_mm)))
+	elif len(area_list) < 3:
+		print(np.mean(area_list[1:-1]/(pixels_per_mm*pixels_per_mm)))
+	else:
+		print(np.mean(area_list[2:-2]/(pixels_per_mm*pixels_per_mm)))
+
+
+	for contour in contour_list:
+		area = cv2.contourArea(contour)
+		if area > grid_area_threshold:
+
+			x, y, w, h = cv2.boundingRect(contour) 
+			# cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2) 
+			cv2.putText(img, '{0:.2f}'.format(area/(pixels_per_mm*pixels_per_mm)), (x, y+20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2) 
+
+			# cv2.drawContours(img, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
+			# cv2.drawContours(outerBox, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
+			# print(area)
+
+
 
 	return pixels_per_mm
 
@@ -879,9 +916,10 @@ def measureArea(img, pixels_per_mm):
 
 			x, y, w, h = cv2.boundingRect(contour) 
 			cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2) 
-			cv2.putText(img, '{0:.2f} mm2'.format(area/(pixels_per_mm*pixels_per_mm)), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2) 
+			cv2.putText(img, '{0:.2f} cm2'.format(area/(pixels_per_mm*pixels_per_mm*100)), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2) 
 
-			cv2.drawContours(img, [contour], -1, (0,255,0), 3)  # plot square-like contours in green
+			cv2.drawContours(img, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
+			# cv2.drawContours(outerBox, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
 			# print(area)
 
 	# print('---------------')
@@ -922,7 +960,7 @@ def running_mean(x, N):
 
 
 
-def acquireFromCamera(show_plot=False):
+def acquireFromCamera(show_calibration=False):
 	# Open the default camera (default was 0)
 	cam = cv2.VideoCapture(3)
 
@@ -930,9 +968,11 @@ def acquireFromCamera(show_plot=False):
 	frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
 	frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-	# Define the codec and create VideoWriter object
-	fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-	out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (frame_width, frame_height))
+	# # Define the codec and create VideoWriter object
+	# fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+	# out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (frame_width, frame_height))
+
+	# ret, mtx, dist, rvecs, tvecs = calibration()
 
 	pixel_scale_list = []
 	# i=0
@@ -957,7 +997,8 @@ def acquireFromCamera(show_plot=False):
 
 		print(avg_pixel_scale)
 		images, titles = measureArea(frame_copy, avg_pixel_scale)
-		cv2.imshow('Area Detection', frame_copy)
+		if show_calibration:
+			cv2.imshow('Area Detection', frame_copy)
 		# for i in range(9):
 		# 	plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
 		# 	plt.title(titles[i])
@@ -968,8 +1009,8 @@ def acquireFromCamera(show_plot=False):
 		# # plt.close()
 
 		# Display the captured frame
-		if show_plot:
-			cv2.imshow('Camera (Press q to exit)', frame)
+		# if show_plot:
+		cv2.imshow('Camera (Press q to exit)', frame)
 		# cv2.imwrite('out.jpeg',frame)
 
 		# Press 'q' to exit the loop
@@ -980,13 +1021,13 @@ def acquireFromCamera(show_plot=False):
 
 	# Release the capture and writer objects
 	cam.release()
-	out.release()
+	# out.release()
 	cv2.destroyAllWindows()
 
 	print('-------------')
 	print(avg_pixel_scale)
 
-acquireFromCamera(show_plot=True)
+acquireFromCamera()
 
 # a = [[[392,  61]],
 #  [[483,  64]],
