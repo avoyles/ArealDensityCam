@@ -299,7 +299,7 @@ def testThresholds():
 
 
 
-def calibration():
+def calibration(show_calibration=False):
 	# Camera calibration 
 
 
@@ -342,9 +342,10 @@ def calibration():
 	    imgpoints.append(corners2)
 
 	    # Draw and display the corners
-	    cv2.drawChessboardCorners(img, ((num_rows+1),(num_cols+1)), corners2, ret)
-	    cv2.imshow('img', img)
-	    cv2.waitKey(0)
+	    if show_calibration:
+		    cv2.drawChessboardCorners(img, ((num_rows+1),(num_cols+1)), corners2, ret)
+		    cv2.imshow('img', img)
+		    cv2.waitKey(0)
 
 	cv2.destroyAllWindows()
 
@@ -358,8 +359,9 @@ def calibration():
 	# Undistoration correction
 	# img = cv2.imread('2024-09-04-145841.jpg')
 	img = cv2.imread('./calibration/calibration_test.png')
-	cv2.imshow('img', img)
-	cv2.waitKey()
+	if show_calibration:
+		cv2.imshow('img', img)
+		cv2.waitKey()
 	h,  w = img.shape[:2]
 	newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
 
@@ -374,13 +376,14 @@ def calibration():
 	    error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
 	    mean_error += error
 	 
-	print( "total error: {}".format(mean_error/len(objpoints)) )
+	# print( "total error: {}".format(mean_error/len(objpoints)) )
 	 
 	# crop the image
 	x, y, w, h = roi
 	dst = dst[y:y+h, x:x+w]
-	cv2.imshow('calibresult.png', dst)
-	cv2.waitKey()
+	if show_calibration:
+		cv2.imshow('calibresult.png', dst)
+		cv2.waitKey()
 
 	cv2.destroyAllWindows()
 
@@ -619,6 +622,40 @@ def measureGridSize(img, show_plot=True):
 	# Mat squaresContours = src.clone();
 	# img = cv2.imread('./Camera.png')
 	# img = cv2.imread('./test_image.jpeg')
+
+
+	# # Undistoration correction
+	# # img = cv2.imread('2024-09-04-145841.jpg')
+	# # img = cv2.imread('./calibration/calibration_test.png')
+	# # if show_calibration:
+	# # cv2.imshow('img', img)
+	# # cv2.waitKey()
+	# h,  w = img.shape[:2]
+	# newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+
+
+	# # undistort
+	# dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
+
+	# # Re-projection error
+	# # mean_error = 0
+	# # for i in range(len(objpoints)):
+	# #     imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
+	# #     error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
+	# #     mean_error += error
+	 
+	# # print( "total error: {}".format(mean_error/len(objpoints)) )
+	 
+	# # crop the image
+	# x, y, w, h = roi
+	# dst = dst[y:y+h, x:x+w]
+	# # if show_calibration:
+	# # cv2.imshow('calibresult.png', dst)
+	# # cv2.waitKey()
+
+
+
+
 	squaresContours = img.copy()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
 	grid_area_threshold = 100
@@ -650,7 +687,8 @@ def measureGridSize(img, show_plot=True):
 	outerBox = cv2.dilate(outerBox,kernel,iterations = 1)
 
 	# kernel = np.ones((30,30))
-	outerBox = cv2.morphologyEx(outerBox, cv2.MORPH_OPEN, np.ones((2,2)))
+	outerBox = cv2.morphologyEx(outerBox, cv2.MORPH_CLOSE, np.ones((2,2)))
+	outerBox = cv2.morphologyEx(outerBox, cv2.MORPH_OPEN, np.ones((3,3)))
 
 	outerBox = cv2.erode(outerBox,np.ones((3,4),np.uint8),iterations = 1)
 
@@ -660,7 +698,7 @@ def measureGridSize(img, show_plot=True):
 
 
 	# cv2.imshow('original', img)
-	# cv2.imshow('gray', gray)
+	# cv2.imshow('gray', outerBox)
 	# cv2.waitKey(0)
 	# cv2.destroyAllWindows()
 
@@ -883,25 +921,25 @@ def measureArea(img, pixels_per_mm):
 	# ret, thresh = cv2.threshold(blur, 127, 255, 0) 
 
 	ret,th1 = cv2.threshold(gray,70,255,cv2.THRESH_BINARY)
-	th2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,11,2)
-	th3 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_MEAN_C,  cv2.THRESH_BINARY,7,2)
-	th4 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,7,2)
-	th5 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,15,2)
-	# Otsu's thresholding
-	ret6,th6 = cv2.threshold(gray,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+	# th2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,11,2)
+	# th3 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_MEAN_C,  cv2.THRESH_BINARY,7,2)
+	# th4 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,7,2)
+	# th5 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,  cv2.THRESH_BINARY,15,2)
+	# # Otsu's thresholding
+	# ret6,th6 = cv2.threshold(gray,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 
-	# Otsu's thresholding with blur
-	ret7,th7= cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+	# # Otsu's thresholding with blur
+	# ret7,th7= cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 	 
-	titles = ['Original Image', 'Grayscale', 'Binary ',
-	            'Adaptive Gaussian (11) ', 'Adaptive Mean', 'Adaptive Gaussian (7) ', 'Adaptive Gaussian (15) ', 'Otsu ', 'Otsu w/ Blur']
-	images = [img, gray, th1, th2, th3, th4, th5, th6, th7]
+	# titles = ['Original Image', 'Grayscale', 'Binary ',
+	#             'Adaptive Gaussian (11) ', 'Adaptive Mean', 'Adaptive Gaussian (7) ', 'Adaptive Gaussian (15) ', 'Otsu ', 'Otsu w/ Blur']
+	# images = [img, gray, th1, th2, th3, th4, th5, th6, th7]
 
 
-	for i in range(9):
-	    plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
-	    plt.title(titles[i])
-	    plt.xticks([]),plt.yticks([])
+	# for i in range(9):
+	#     plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
+	#     plt.title(titles[i])
+	#     plt.xticks([]),plt.yticks([])
 	# plt.show(block=False)
 	# plt.pause(0.05)
 	# plt.close()
@@ -923,7 +961,7 @@ def measureArea(img, pixels_per_mm):
 			# print(area)
 
 	# print('---------------')
-	return images, titles
+	# return images, titles
 
 
 
@@ -962,7 +1000,7 @@ def running_mean(x, N):
 
 def acquireFromCamera(show_calibration=False):
 	# Open the default camera (default was 0)
-	cam = cv2.VideoCapture(3)
+	cam = cv2.VideoCapture(0)
 
 	# Get the default frame width and height
 	frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -972,7 +1010,7 @@ def acquireFromCamera(show_calibration=False):
 	# fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 	# out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (frame_width, frame_height))
 
-	# ret, mtx, dist, rvecs, tvecs = calibration()
+	ret, mtx, dist, rvecs, tvecs = calibration()
 
 	pixel_scale_list = []
 	# i=0
@@ -984,7 +1022,7 @@ def acquireFromCamera(show_calibration=False):
 		# Write the frame to the output file
 		# out.write(frame)
 
-		pixels_per_mm = measureGridSize(frame)
+		pixels_per_mm = measureGridSize(frame)#,ret, mtx, dist, rvecs, tvecs)
 		if not np.isnan(pixels_per_mm):
 			pixel_scale_list.append(pixels_per_mm)
 
@@ -996,7 +1034,7 @@ def acquireFromCamera(show_calibration=False):
 			avg_pixel_scale = running_mean(pixel_scale_list, 20)[-1]
 
 		print(avg_pixel_scale)
-		images, titles = measureArea(frame_copy, avg_pixel_scale)
+		measureArea(frame_copy, avg_pixel_scale)
 		if show_calibration:
 			cv2.imshow('Area Detection', frame_copy)
 		# for i in range(9):
@@ -1027,7 +1065,7 @@ def acquireFromCamera(show_calibration=False):
 	print('-------------')
 	print(avg_pixel_scale)
 
-acquireFromCamera()
+acquireFromCamera(True)
 
 # a = [[[392,  61]],
 #  [[483,  64]],
