@@ -656,10 +656,10 @@ def measureGridSize(img, show_plot=True):
 
 
 
-	squaresContours = img.copy()
+	# squaresContours = img.copy()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
-	grid_area_threshold = 100
-	known_grid_width = 5 # mm
+	grid_area_threshold = 10
+	known_grid_width = 4.9 # mm
 
 	# print(gray.shape)
 
@@ -808,7 +808,7 @@ def measureGridSize(img, show_plot=True):
 	# print(area_list)
 
 	for (area,contour) in zip(area_list,contour_list):
-		cv2.drawContours(img, [contour], -1, (0,255,0), 3)  # plot square-like contours in green
+		cv2.drawContours(img, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
 		# cv2.drawContours(outerBox, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
 		# continue
 
@@ -818,11 +818,11 @@ def measureGridSize(img, show_plot=True):
 	# median = np.median(area_list)
 	area_list.sort()
 	if len(area_list) < 2:
-		median = np.mean(area_list)
+		median = np.median(area_list)
 	elif len(area_list) < 3:
-		median = np.mean(area_list[1:-1])
+		median = np.median(area_list[1:-1])
 	else:
-		median = np.mean(area_list[2:-2])
+		median = np.median(area_list[2:-2])
 	pixels_per_mm = 0
 	# //take the side of a square which is the number of pixels per millimeter
 	# cout << "number of pixels per millimeter = " << sqrt(median) << endl;`Preformatted text`
@@ -839,12 +839,12 @@ def measureGridSize(img, show_plot=True):
 	# cv2.waitKey(0)
 	# # cv2.destroyAllWindows()
 
-	if len(area_list) < 2:
-		print(np.mean(area_list/(pixels_per_mm*pixels_per_mm)))
-	elif len(area_list) < 3:
-		print(np.mean(area_list[1:-1]/(pixels_per_mm*pixels_per_mm)))
-	else:
-		print(np.mean(area_list[2:-2]/(pixels_per_mm*pixels_per_mm)))
+	# if len(area_list) < 2:
+	# 	print(np.mean(area_list/(pixels_per_mm*pixels_per_mm)))
+	# elif len(area_list) < 3:
+	# 	print(np.mean(area_list[1:-1]/(pixels_per_mm*pixels_per_mm)))
+	# else:
+	# 	print(np.mean(area_list[2:-2]/(pixels_per_mm*pixels_per_mm)))
 
 
 	for contour in contour_list:
@@ -954,7 +954,7 @@ def measureArea(img, pixels_per_mm):
 
 			x, y, w, h = cv2.boundingRect(contour) 
 			cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2) 
-			cv2.putText(img, '{0:.2f} cm2'.format(area/(pixels_per_mm*pixels_per_mm*100)), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2) 
+			cv2.putText(img, '{0:.3f} cm2'.format(area/(pixels_per_mm*pixels_per_mm*100)), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2) 
 
 			cv2.drawContours(img, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
 			# cv2.drawContours(outerBox, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
@@ -1026,29 +1026,28 @@ def acquireFromCamera(show_calibration=False):
 		if not np.isnan(pixels_per_mm):
 			pixel_scale_list.append(pixels_per_mm)
 
-		avg_pixel_scale = np.convolve(pixel_scale_list, np.ones(len(pixel_scale_list))/len(pixel_scale_list), mode='valid')
+		avg_pixel_scale2 = np.convolve(pixel_scale_list, np.ones(len(pixel_scale_list))/len(pixel_scale_list), mode='valid')
 
 		if len(pixel_scale_list) <25:
 			avg_pixel_scale = running_mean(pixel_scale_list, len(pixel_scale_list))[0]
 		else:
 			avg_pixel_scale = running_mean(pixel_scale_list, 20)[-1]
 
-		print(avg_pixel_scale)
+		# print('Convolve average', avg_pixel_scale2)
+		# print('Running mean average', avg_pixel_scale)
 		measureArea(frame_copy, avg_pixel_scale)
-		if show_calibration:
-			cv2.imshow('Area Detection', frame_copy)
+		# if show_calibration:
+		cv2.imshow('Area Detection', frame_copy)
 		# for i in range(9):
 		# 	plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
 		# 	plt.title(titles[i])
 		# 	plt.xticks([]),plt.yticks([])
 
-		# plt.show(block=False)
-		# plt.pause(0.05)
-		# # plt.close()
 
 		# Display the captured frame
 		# if show_plot:
-		cv2.imshow('Camera (Press q to exit)', frame)
+		if show_calibration:
+			cv2.imshow('Camera (Press q to exit)', frame)
 		# cv2.imwrite('out.jpeg',frame)
 
 		# Press 'q' to exit the loop
