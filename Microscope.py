@@ -737,7 +737,7 @@ def measureGridSize(img, show_plot=True):
 	# squaresContours = img.copy()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
 	grid_area_threshold = 10
-	known_grid_width = 4.9 # mm
+	known_grid_width = 4.91 # mm
 
 	# print(gray.shape)
 
@@ -937,9 +937,33 @@ def measureGridSize(img, show_plot=True):
 			# cv2.drawContours(outerBox, [contour], -1, (0,255,0), 1)  # plot square-like contours in green
 			# print(area)
 
+	# Perspective transform
+	# All points are in format [cols, rows]
+	pt_A = [18, 8]
+	pt_B = [20, 468]
+	pt_C = [623, 467]
+	pt_D = [625, 15]
+
+	# Here, I have used L2 norm. You can use L1 also.
+	width_AD = np.sqrt(((pt_A[0] - pt_D[0]) ** 2) + ((pt_A[1] - pt_D[1]) ** 2))
+	width_BC = np.sqrt(((pt_B[0] - pt_C[0]) ** 2) + ((pt_B[1] - pt_C[1]) ** 2))
+	maxWidth = max(int(width_AD), int(width_BC))
 
 
-	return pixels_per_mm
+	height_AB = np.sqrt(((pt_A[0] - pt_B[0]) ** 2) + ((pt_A[1] - pt_B[1]) ** 2))
+	height_CD = np.sqrt(((pt_C[0] - pt_D[0]) ** 2) + ((pt_C[1] - pt_D[1]) ** 2))
+	maxHeight = max(int(height_AB), int(height_CD))
+
+	input_pts = np.float32([pt_A, pt_B, pt_C, pt_D])
+	output_pts = np.float32([[0, 0],
+	                        [0, maxHeight - 1],
+	                        [maxWidth - 1, maxHeight - 1],
+	                        [maxWidth - 1, 0]])
+
+	# Compute the perspective transform M
+	M = cv2.getPerspectiveTransform(input_pts,output_pts)
+
+	return pixels_per_mm#, M, maxWidth, maxHeight
 
 
 # measureGridSize(cv2.imread('./Camera.png'))
@@ -1099,8 +1123,35 @@ def acquireFromCamera(show_calibration=False):
 	camera_matrix = np.load('camera_matrix.npy')
 	dist_coeffs = np.load('dist_coeffs.npy')
 
+	# Perspective transform
+	# All points are in format [cols, rows]
+	pt_A = [18, 8]
+	pt_B = [20, 468]
+	pt_C = [623, 467]
+	pt_D = [625, 15]
+
+	# Here, I have used L2 norm. You can use L1 also.
+	width_AD = np.sqrt(((pt_A[0] - pt_D[0]) ** 2) + ((pt_A[1] - pt_D[1]) ** 2))
+	width_BC = np.sqrt(((pt_B[0] - pt_C[0]) ** 2) + ((pt_B[1] - pt_C[1]) ** 2))
+	maxWidth = max(int(width_AD), int(width_BC))
+
+
+	height_AB = np.sqrt(((pt_A[0] - pt_B[0]) ** 2) + ((pt_A[1] - pt_B[1]) ** 2))
+	height_CD = np.sqrt(((pt_C[0] - pt_D[0]) ** 2) + ((pt_C[1] - pt_D[1]) ** 2))
+	maxHeight = max(int(height_AB), int(height_CD))
+
+	input_pts = np.float32([pt_A, pt_B, pt_C, pt_D])
+	output_pts = np.float32([[0, 0],
+	                        [0, maxHeight - 1],
+	                        [maxWidth - 1, maxHeight - 1],
+	                        [maxWidth - 1, 0]])
+
+	# Compute the perspective transform M
+	M = cv2.getPerspectiveTransform(input_pts,output_pts)
+
 	while True:
 		ret, frame = cam.read()
+		frame = cv2.warpPerspective(frame,M,(maxWidth, maxHeight),flags=cv2.INTER_LINEAR)
 		frame_copy = frame.copy()
 
 		# Write the frame to the output file
@@ -1121,11 +1172,15 @@ def acquireFromCamera(show_calibration=False):
 		# print('Convolve average', avg_pixel_scale2)
 		# print('Running mean average', avg_pixel_scale)
 		measureArea(frame_copy, avg_pixel_scale)
+		# out_frame = cv2.warpPerspective(frame,M,(maxWidth, maxHeight),flags=cv2.INTER_LINEAR)
+		# cv2.imshow('Perspective Transform', frame_copy)
+
 		# if show_calibration:
 		cv2.imshow('Area Detection', frame_copy)
 
-		undistorted_image = cv2.undistort(frame_copy, camera_matrix, dist_coeffs)
-		cv2.imshow('undistorted_image', undistorted_image)
+
+		# undistorted_image = cv2.undistort(frame_copy, camera_matrix, dist_coeffs)
+		# cv2.imshow('undistorted_image', undistorted_image)
 
 		# for i in range(9):
 		# 	plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
@@ -1154,6 +1209,106 @@ def acquireFromCamera(show_calibration=False):
 	print(avg_pixel_scale)
 
 acquireFromCamera(True)
+
+def testPerspective(image):
+	# Load calibration data
+	camera_matrix = np.load('camera_matrix.npy')
+	dist_coeffs = np.load('dist_coeffs.npy')
+	img = cv2.imread(image)
+	frame_copy = img.copy()
+	# Perspective transform
+	# All points are in format [cols, rows]
+	pt_A = [18, 8]
+	pt_B = [20, 468]
+	pt_C = [623, 467]
+	pt_D = [625, 15]
+
+	# Here, I have used L2 norm. You can use L1 also.
+	width_AD = np.sqrt(((pt_A[0] - pt_D[0]) ** 2) + ((pt_A[1] - pt_D[1]) ** 2))
+	width_BC = np.sqrt(((pt_B[0] - pt_C[0]) ** 2) + ((pt_B[1] - pt_C[1]) ** 2))
+	maxWidth = max(int(width_AD), int(width_BC))
+
+
+	height_AB = np.sqrt(((pt_A[0] - pt_B[0]) ** 2) + ((pt_A[1] - pt_B[1]) ** 2))
+	height_CD = np.sqrt(((pt_C[0] - pt_D[0]) ** 2) + ((pt_C[1] - pt_D[1]) ** 2))
+	maxHeight = max(int(height_AB), int(height_CD))
+
+	input_pts = np.float32([pt_A, pt_B, pt_C, pt_D])
+	output_pts = np.float32([[0, 0],
+	                        [0, maxHeight - 1],
+	                        [maxWidth - 1, maxHeight - 1],
+	                        [maxWidth - 1, 0]])
+
+	# Compute the perspective transform M
+	M = cv2.getPerspectiveTransform(input_pts,output_pts)
+
+	transformed = cv2.warpPerspective(img,M,(maxWidth, maxHeight),flags=cv2.INTER_LINEAR)
+
+	undistorted_image = cv2.undistort(frame_copy, camera_matrix, dist_coeffs)
+
+	undistorted_image2 = cv2.undistort(transformed, camera_matrix, dist_coeffs)
+	
+
+	cv2.imshow('transformed image', transformed)
+	cv2.imshow('original image', img)
+	cv2.imshow('undistorted_image', undistorted_image)
+	cv2.imshow('transformed and undistorted', undistorted_image2)
+	cv2.waitKey(0)
+
+	
+# testPerspective('original_image.png')
+
+def testDistortion(image):
+	# Load calibration data
+	# camera_matrix = np.load('camera_matrix.npy')
+	# dist_coeffs = np.load('dist_coeffs.npy')
+	img = cv2.imread(image)
+	frame_copy = img.copy()
+	# # Perspective transform
+	# # All points are in format [cols, rows]
+	# pt_A = [18, 8]
+	# pt_B = [20, 468]
+	# pt_C = [623, 467]
+	# pt_D = [625, 15]
+
+	# # Here, I have used L2 norm. You can use L1 also.
+	# width_AD = np.sqrt(((pt_A[0] - pt_D[0]) ** 2) + ((pt_A[1] - pt_D[1]) ** 2))
+	# width_BC = np.sqrt(((pt_B[0] - pt_C[0]) ** 2) + ((pt_B[1] - pt_C[1]) ** 2))
+	# maxWidth = max(int(width_AD), int(width_BC))
+
+
+	# height_AB = np.sqrt(((pt_A[0] - pt_B[0]) ** 2) + ((pt_A[1] - pt_B[1]) ** 2))
+	# height_CD = np.sqrt(((pt_C[0] - pt_D[0]) ** 2) + ((pt_C[1] - pt_D[1]) ** 2))
+	# maxHeight = max(int(height_AB), int(height_CD))
+
+	# input_pts = np.float32([pt_A, pt_B, pt_C, pt_D])
+	# output_pts = np.float32([[0, 0],
+	#                         [0, maxHeight - 1],
+	#                         [maxWidth - 1, maxHeight - 1],
+	#                         [maxWidth - 1, 0]])
+
+	# # Compute the perspective transform M
+	# M = cv2.getPerspectiveTransform(input_pts,output_pts)
+
+	# transformed = cv2.warpPerspective(img,M,(maxWidth, maxHeight),flags=cv2.INTER_LINEAR)
+
+	undistorted_image = cv2.undistort(frame_copy, np.load('camera_matrix.npy'), np.load('dist_coeffs.npy'))
+
+	undistorted_image2 = cv2.undistort(frame_copy, np.load('./backup/camera_matrix.npy'), np.load('./backup/dist_coeffs.npy'))
+
+	undistorted_image3 = cv2.undistort(frame_copy, np.load('./backup2/camera_matrix.npy'), np.load('./backup2/dist_coeffs.npy'))
+
+	
+
+	# cv2.imshow('transformed image', transformed)
+	cv2.imshow('original image', img)
+	cv2.imshow('matrix', undistorted_image)
+	cv2.imshow('backup', undistorted_image2)
+	cv2.imshow('backup2', undistorted_image3)
+	cv2.waitKey(0)
+
+	
+# testDistortion('original_image.png')
 
 # a = [[[392,  61]],
 #  [[483,  64]],
