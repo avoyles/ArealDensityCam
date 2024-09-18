@@ -375,7 +375,7 @@ def calibrate_and_save_parameters():
 	print('---------------------------')
 
 
-calibrate_and_save_parameters()
+# calibrate_and_save_parameters()
 
 def calibration(img, show_calibration=False):
 	# Camera calibration 
@@ -1095,6 +1095,10 @@ def acquireFromCamera(show_calibration=False):
 	pixel_scale_list = []
 	# i=0
 
+	# Load calibration data
+	camera_matrix = np.load('camera_matrix.npy')
+	dist_coeffs = np.load('dist_coeffs.npy')
+
 	while True:
 		ret, frame = cam.read()
 		frame_copy = frame.copy()
@@ -1119,6 +1123,10 @@ def acquireFromCamera(show_calibration=False):
 		measureArea(frame_copy, avg_pixel_scale)
 		# if show_calibration:
 		cv2.imshow('Area Detection', frame_copy)
+
+		undistorted_image = cv2.undistort(frame_copy, camera_matrix, dist_coeffs)
+		cv2.imshow('undistorted_image', undistorted_image)
+
 		# for i in range(9):
 		# 	plt.subplot(3,3,i+1),plt.imshow(images[i],'gray')
 		# 	plt.title(titles[i])
@@ -1145,7 +1153,7 @@ def acquireFromCamera(show_calibration=False):
 	print('-------------')
 	print(avg_pixel_scale)
 
-# acquireFromCamera(True)
+acquireFromCamera(True)
 
 # a = [[[392,  61]],
 #  [[483,  64]],
