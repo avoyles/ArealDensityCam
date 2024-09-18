@@ -296,10 +296,88 @@ def testThresholds():
 	            'Adaptive Mean Thresholding', 'Adaptive Gaussian Thresholding']#, 'Otsu Thresholding', 'test2']
 	images = [img, gray, th3, th4]#, th4, gray]
 	 
+import os 
+
+def calibrate_and_save_parameters():
+	# ------------------------------
+	# ENTER YOUR REQUIREMENTS HERE:
+	ARUCO_DICT = cv2.aruco.DICT_4X4_250
+	SQUARES_VERTICALLY = 10
+	SQUARES_HORIZONTALLY = 8
+	SQUARE_LENGTH = 3.5E-6
+	MARKER_LENGTH = SQUARE_LENGTH/2
+	# ...
+	PATH_TO_YOUR_IMAGES = './ChArUco_4'
+	# ------------------------------
+	# Define the aruco dictionary and charuco board
+	dictionary = cv2.aruco.getPredefinedDictionary(ARUCO_DICT)
+	board = cv2.aruco.CharucoBoard((SQUARES_VERTICALLY, SQUARES_HORIZONTALLY), SQUARE_LENGTH, MARKER_LENGTH, dictionary)
+	# board.setLegacyPattern(True)
+
+	params = cv2.aruco.DetectorParameters()
+
+	# Load PNG images from folder
+	# image_files = [os.path.join(PATH_TO_YOUR_IMAGES, f) for f in os.listdir(PATH_TO_YOUR_IMAGES) if f.endswith(".png")]
+	# image_files.sort()  # Ensure files are in order
+
+	all_charuco_corners = []
+	all_charuco_ids = []
+
+	cam = cv2.VideoCapture(0)
+
+# for image_file in image_files:
+	while True:
+		ret, image = cam.read()
+		# image_copy = image.copy()
+
+	
+		# image = cv2.imread(image_file)
+		image_copy = image.copy()
+		# cv2.imshow('image', image)
+		# cv2.waitKey()
+		marker_corners, marker_ids, _ = cv2.aruco.detectMarkers(image, dictionary, parameters=params)
+
+		# If at least one marker is detected
+		if len(marker_ids) > 0:
+			cv2.aruco.drawDetectedMarkers(image_copy, marker_corners, marker_ids)
+			cv2.imshow('image_copy', image_copy)
+			# cv2.waitKey()
+			charuco_retval, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(marker_corners, marker_ids, image, board)
+			# print(charuco_retval)
+			# print(charuco_corners)
+			if charuco_retval:
+				all_charuco_corners.append(charuco_corners)
+				all_charuco_ids.append(charuco_ids)
+
+		# Press 'q' to exit the loop
+		if cv2.waitKey(1) == ord('q'):
+		    break
+
+	# Calibrate camera
+	# print(all_charuco_corners)
+	# print(all_charuco_ids)
+	# print(board)
+	retval, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.aruco.calibrateCameraCharuco(all_charuco_corners, all_charuco_ids, board, image.shape[:2], None, None)
+	# print(retval)
+
+	# Save calibration data
+	np.save('camera_matrix.npy', camera_matrix)
+	np.save('dist_coeffs.npy', dist_coeffs)
+
+	# # Iterate through displaying all the images
+	# for image_file in image_files:
+	# 	image = cv2.imread(image_file)
+	# 	undistorted_image = cv2.undistort(image, camera_matrix, dist_coeffs)
+	# 	cv2.imshow('Undistorted Image', undistorted_image)
+	# 	cv2.waitKey(0)
+
+	cv2.destroyAllWindows()
+	print('---------------------------')
 
 
+calibrate_and_save_parameters()
 
-def calibration(show_calibration=False):
+def calibration(img, show_calibration=False):
 	# Camera calibration 
 
 
@@ -323,12 +401,12 @@ def calibration(show_calibration=False):
 	 
 	# for fname in images:
 	# img = cv2.imread('./calibration/2024-09-04-153634.jpg')
-	img = cv2.imread('./calibration/calibration_grid2.png')
-	# cv2.imshow('img', img)
+	# img = cv2.imread('./calibration/calibration_grid2.png')
+	cv2.imshow('img', img)
 	# cv2.waitKey()
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-	# cv2.imshow('img', gray)
-	# cv2.waitKey()
+	cv2.imshow('gray', gray)
+	cv2.waitKey()
 
 	# Find the chess board corners
 	ret, corners = cv2.findChessboardCorners(gray, ((num_rows+1),(num_cols+1)), None)
@@ -1010,7 +1088,9 @@ def acquireFromCamera(show_calibration=False):
 	# fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 	# out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (frame_width, frame_height))
 
-	ret, mtx, dist, rvecs, tvecs = calibration()
+	# ret, frame = cam.read()
+
+	# ret, mtx, dist, rvecs, tvecs = calibration(frame,True)
 
 	pixel_scale_list = []
 	# i=0
@@ -1021,6 +1101,7 @@ def acquireFromCamera(show_calibration=False):
 
 		# Write the frame to the output file
 		# out.write(frame)
+		# calibrate_and_save_parameters(frame)
 
 		pixels_per_mm = measureGridSize(frame)#,ret, mtx, dist, rvecs, tvecs)
 		if not np.isnan(pixels_per_mm):
@@ -1064,7 +1145,7 @@ def acquireFromCamera(show_calibration=False):
 	print('-------------')
 	print(avg_pixel_scale)
 
-acquireFromCamera(True)
+# acquireFromCamera(True)
 
 # a = [[[392,  61]],
 #  [[483,  64]],
